@@ -6,7 +6,6 @@ go_library(
     srcs = [
         "cbt.go",
         "controller.go",
-        "guestagent.go",
         "migration.go",
         "migration-source.go",
         "migration-target.go",

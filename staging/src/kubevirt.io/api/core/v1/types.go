@@ -2826,6 +2826,12 @@ type VirtualMachineInstanceGuestAgentInfo struct {
 	// It will be set to "frozen" if the request was made, or unset otherwise.
 	// This does not reflect the actual state of the guest filesystem.
 	FSFreezeStatus string `json:"fsFreezeStatus,omitempty"`
+	// GuestAgentConnected indicates whether the guest agent is connected
+	GuestAgentConnected bool `json:"guestAgentConnected,omitempty"`
+	// GuestAgentSupported indicates whether the guest agent is supported
+	GuestAgentSupported bool `json:"guestAgentSupported,omitempty"`
+	// GuestAgentUnsupportedReason indicates the reason why the guest agent is not supported
+	GuestAgentUnsupportedReason string `json:"guestAgentUnsupportedReason,omitempty"`
 }
 
 // List of commands that QEMU guest agent supports

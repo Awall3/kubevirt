@@ -118,11 +118,15 @@ const (
 	ResultTypeMaxVirtHandlerMemoryUsageInMB    ResultType = "maxVirtHandlerMemoryUsageInMB"
 
 	// container_cpu_usage_seconds_total
-	ResultTypeAvgVirtAPICPUUsage        ResultType = "avgVirtAPICPUUsage"
-	ResultTypeAvgVirtControllerCPUUsage ResultType = "avgVirtControllerCPUUsage"
-	ResultTypeAvgVirtHandlerCPUUsage    ResultType = "avgVirtHandlerCPUUsage"
-	ResultTypeMinVirtHandlerCPUUsage    ResultType = "minVirtHandlerCPUUsage"
-	ResultTypeMaxVirtHandlerCPUUsage    ResultType = "maxVirtHandlerCPUUsage"
+	ResultTypeAvgVirtAPICPUUsage          ResultType = "avgVirtAPICPUUsage"
+	ResultTypeAvgVirtControllerCPUUsage   ResultType = "avgVirtControllerCPUUsage"
+	ResultTypeAvgVirtHandlerCPUUsage      ResultType = "avgVirtHandlerCPUUsage"
+	ResultTypeMinVirtHandlerCPUUsage      ResultType = "minVirtHandlerCPUUsage"
+	ResultTypeMaxVirtHandlerCPUUsage      ResultType = "maxVirtHandlerCPUUsage"
+	ResultTypeAvgVirtLauncherCPUUsage     ResultType = "avgVirtLauncherCPUUsage"
+	ResultTypeAvgVirtLauncherMemUsageInMB ResultType = "avgVirtLauncherMemUsageInMB"
+	ResultTypeMaxVirtLauncherCPUUsage     ResultType = "maxVirtLauncherCPUUsage"
+	ResultTypeMaxVirtLauncherMemUsageInMB ResultType = "maxVirtLauncherMemUsageInMB"
 
 	// virt_controller workqueue metrics
 	ResultTypeVirtControllerWorkqueueAddRate    ResultType = "virtControllerWorkqueueAddRate"

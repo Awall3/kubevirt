@@ -783,7 +783,7 @@ func (c *VirtualMachineController) updateGuestAgentConditions(vmi *v1.VirtualMac
 			return err
 		}
 
-		guestInfo, err := client.GetGuestInfo()
+		guestInfo, err := client.GetGuestInfo(vmi)
 		if err != nil {
 			return err
 		}
@@ -791,7 +791,7 @@ func (c *VirtualMachineController) updateGuestAgentConditions(vmi *v1.VirtualMac
 		var supported = false
 		var reason = ""
 
-		supported, reason = isGuestAgentSupported(vmi, guestInfo.SupportedCommands)
+		supported, reason = util.IsGuestAgentSupported(vmi, guestInfo.SupportedCommands)
 		c.logger.V(3).Object(vmi).Info(reason)
 
 		if !supported {

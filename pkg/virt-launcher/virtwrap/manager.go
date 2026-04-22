@@ -35,7 +35,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -83,6 +82,7 @@ import (
 	storagetypes "kubevirt.io/kubevirt/pkg/storage/types"
 	"kubevirt.io/kubevirt/pkg/unsafepath"
 	kutil "kubevirt.io/kubevirt/pkg/util"
+	pkgutil "kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/util/hardware"
 	hw_utils "kubevirt.io/kubevirt/pkg/util/hardware"
 	cmdclient "kubevirt.io/kubevirt/pkg/virt-handler/cmd-client"
@@ -149,7 +149,7 @@ type DomainManager interface {
 	PrepareMigrationTarget(*v1.VirtualMachineInstance, bool, *cmdv1.VirtualMachineOptions) error
 	GetDomainStats() (*stats.DomainStats, error)
 	CancelVMIMigration(*v1.VirtualMachineInstance) error
-	GetGuestInfo(vmi *v1.VirtualMachineInstance, supportedGuestAgentVersions []string) (*v1.VirtualMachineInstanceGuestAgentInfo, error)
+	GetGuestInfo(vmi *v1.VirtualMachineInstance) (*v1.VirtualMachineInstanceGuestAgentInfo, error)
 	GetUsers() []v1.VirtualMachineInstanceGuestOSUser
 	GetFilesystems() []v1.VirtualMachineInstanceFileSystem
 	FinalizeVirtualMachineMigration(*v1.VirtualMachineInstance, *cmdv1.VirtualMachineOptions) error
@@ -2256,7 +2256,7 @@ func (l *LibvirtDomainManager) buildDevicesMetadata(vmi *v1.VirtualMachineInstan
 }
 
 // GetGuestInfo queries the agent store and return the aggregated data from Guest agent
-func (l *LibvirtDomainManager) GetGuestInfo(vmi *v1.VirtualMachineInstance, supportedGuestAgentVersions []string) (*v1.VirtualMachineInstanceGuestAgentInfo, error) {
+func (l *LibvirtDomainManager) GetGuestInfo(vmi *v1.VirtualMachineInstance) (*v1.VirtualMachineInstanceGuestAgentInfo, error) {
 	agentConnectedStatus := l.agentData.GetAgentConnectedStatus()
 	sysInfo := l.agentData.GetSysInfo()
 	fsInfo := l.agentData.GetFS(10)
@@ -2306,23 +2306,8 @@ func (l *LibvirtDomainManager) GetGuestInfo(vmi *v1.VirtualMachineInstance, supp
 	}
 
 	// Determine whether the guest agent is supported
-	var supported = false
-	var reason = ""
-	// For current versions, virt-launcher's supported commands will always contain data.
-	// For backwards compatibility: during upgrade from a previous version of KubeVirt,
-	// virt-launcher might not provide any supported commands. If the list of supported
-	// commands is empty, fall back to previous behavior.
-	if len(guestInfo.SupportedCommands) > 0 {
-		supported, reason = isGuestAgentSupported(vmi, guestInfo.SupportedCommands)
-		log.Log.V(3).Object(vmi).Info(reason)
-	} else {
-		for _, version := range supportedGuestAgentVersions {
-			supported = supported || regexp.MustCompile(version).MatchString(guestInfo.GAVersion)
-		}
-		if !supported {
-			reason = fmt.Sprintf("Guest agent version '%s' is not supported", guestInfo.GAVersion)
-		}
-	}
+	supported, reason := pkgutil.IsGuestAgentSupported(vmi, guestInfo.SupportedCommands)
+	log.Log.V(3).Object(vmi).Info(reason)
 
 	guestInfo.GuestAgentSupported = supported
 	guestInfo.GuestAgentUnsupportedReason = reason

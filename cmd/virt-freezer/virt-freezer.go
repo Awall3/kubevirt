@@ -94,7 +94,7 @@ func parseFlags() (*FreezerConfig, error) {
 func run(config *FreezerConfig, client cmdclient.LauncherClient) error {
 	vmi := libvmi.New(libvmi.WithName(config.Name), libvmi.WithNamespace(config.Namespace))
 
-	info, err := client.GetGuestInfo(vmi, []string{})
+	info, err := client.GetGuestInfo(vmi)
 	if err != nil {
 		log.Log.Reason(err).Error("Failed to get guest info")
 		return err

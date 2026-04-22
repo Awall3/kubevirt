@@ -38,6 +38,7 @@ import (
 	"libvirt.org/go/libvirt"
 	"libvirt.org/go/libvirtxml"
 
+	pkgutil "kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/disksource"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/network"
 
@@ -2590,7 +2591,7 @@ var _ = Describe("Manager", func() {
 		libvirtmanager := manager.(*LibvirtDomainManager)
 
 		vmi := newVMI(testNamespace, testVmName)
-		guestInfo, _ := libvirtmanager.GetGuestInfo(vmi, []string{})
+		guestInfo, _ := libvirtmanager.GetGuestInfo(vmi)
 		Expect(guestInfo.UserList).To(ConsistOf(v1.VirtualMachineInstanceGuestOSUser{
 			UserName:  "test",
 			Domain:    "test",
@@ -2848,7 +2849,7 @@ var _ = Describe("Manager", func() {
 			}
 
 			basicCommands = []v1.GuestAgentCommandInfo{}
-			for _, cmdName := range requiredGuestAgentCommands {
+			for _, cmdName := range pkgutil.RequiredGuestAgentCommands {
 				basicCommands = append(basicCommands, v1.GuestAgentCommandInfo{
 					Name:    cmdName,
 					Enabled: true,
@@ -2856,7 +2857,7 @@ var _ = Describe("Manager", func() {
 			}
 
 			sshCommands = []v1.GuestAgentCommandInfo{}
-			for _, cmdName := range sshRelatedGuestAgentCommands {
+			for _, cmdName := range pkgutil.SshRelatedGuestAgentCommands {
 				sshCommands = append(sshCommands, v1.GuestAgentCommandInfo{
 					Name:    cmdName,
 					Enabled: true,
@@ -2864,7 +2865,7 @@ var _ = Describe("Manager", func() {
 			}
 
 			oldSshCommands = []v1.GuestAgentCommandInfo{}
-			for _, cmdName := range oldSSHRelatedGuestAgentCommands {
+			for _, cmdName := range pkgutil.OldSSHRelatedGuestAgentCommands {
 				oldSshCommands = append(oldSshCommands, v1.GuestAgentCommandInfo{
 					Name:    cmdName,
 					Enabled: true,
@@ -2872,7 +2873,7 @@ var _ = Describe("Manager", func() {
 			}
 
 			passwordCommands = []v1.GuestAgentCommandInfo{}
-			for _, cmdName := range passwordRelatedGuestAgentCommands {
+			for _, cmdName := range pkgutil.PasswordRelatedGuestAgentCommands {
 				passwordCommands = append(passwordCommands, v1.GuestAgentCommandInfo{
 					Name:    cmdName,
 					Enabled: true,
@@ -2881,7 +2882,7 @@ var _ = Describe("Manager", func() {
 		})
 
 		It("should succeed with empty VMI and basic commands", func() {
-			result, reason := isGuestAgentSupported(vmi, basicCommands)
+			result, reason := pkgutil.IsGuestAgentSupported(vmi, basicCommands)
 			Expect(result).To(BeTrue())
 			Expect(reason).To(Equal(agentSupported))
 		})
@@ -2892,13 +2893,13 @@ var _ = Describe("Manager", func() {
 			commands = append(commands, sshCommands...)
 			commands = append(commands, passwordCommands...)
 
-			result, reason := isGuestAgentSupported(vmi, commands)
+			result, reason := pkgutil.IsGuestAgentSupported(vmi, commands)
 			Expect(result).To(BeTrue())
 			Expect(reason).To(Equal(agentSupported))
 		})
 
 		It("should fail with password and basic commands", func() {
-			result, reason := isGuestAgentSupported(vmiWithPassword, basicCommands)
+			result, reason := pkgutil.IsGuestAgentSupported(vmiWithPassword, basicCommands)
 			Expect(result).To(BeFalse())
 			Expect(reason).To(Equal("This guest agent doesn't support required password commands"))
 		})
@@ -2908,13 +2909,13 @@ var _ = Describe("Manager", func() {
 			commands = append(commands, basicCommands...)
 			commands = append(commands, passwordCommands...)
 
-			result, reason := isGuestAgentSupported(vmiWithPassword, commands)
+			result, reason := pkgutil.IsGuestAgentSupported(vmiWithPassword, commands)
 			Expect(result).To(BeTrue())
 			Expect(reason).To(Equal(agentSupported))
 		})
 
 		It("should fail with SSH and basic commands", func() {
-			result, reason := isGuestAgentSupported(vmiWithSSH, basicCommands)
+			result, reason := pkgutil.IsGuestAgentSupported(vmiWithSSH, basicCommands)
 			Expect(result).To(BeFalse())
 			Expect(reason).To(Equal("This guest agent doesn't support required public key commands"))
 		})
@@ -2924,7 +2925,7 @@ var _ = Describe("Manager", func() {
 			commands = append(commands, basicCommands...)
 			commands = append(commands, sshCommands...)
 
-			result, reason := isGuestAgentSupported(vmiWithSSH, commands)
+			result, reason := pkgutil.IsGuestAgentSupported(vmiWithSSH, commands)
 			Expect(result).To(BeTrue())
 			Expect(reason).To(Equal(agentSupported))
 		})
@@ -2934,7 +2935,7 @@ var _ = Describe("Manager", func() {
 			commands = append(commands, basicCommands...)
 			commands = append(commands, oldSshCommands...)
 
-			result, reason := isGuestAgentSupported(vmiWithSSH, commands)
+			result, reason := pkgutil.IsGuestAgentSupported(vmiWithSSH, commands)
 			Expect(result).To(BeTrue())
 			Expect(reason).To(Equal(agentSupported))
 		})

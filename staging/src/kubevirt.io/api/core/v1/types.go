@@ -2827,9 +2827,9 @@ type VirtualMachineInstanceGuestAgentInfo struct {
 	// This does not reflect the actual state of the guest filesystem.
 	FSFreezeStatus string `json:"fsFreezeStatus,omitempty"`
 	// GuestAgentConnected indicates whether the guest agent is connected
-	GuestAgentConnected bool `json:"guestAgentConnected,omitempty"`
+	GuestAgentConnected *bool `json:"guestAgentConnected,omitempty"`
 	// GuestAgentSupported indicates whether the guest agent is supported
-	GuestAgentSupported bool `json:"guestAgentSupported,omitempty"`
+	GuestAgentSupported *bool `json:"guestAgentSupported,omitempty"`
 	// GuestAgentUnsupportedReason indicates the reason why the guest agent is not supported
 	GuestAgentUnsupportedReason string `json:"guestAgentUnsupportedReason,omitempty"`
 }

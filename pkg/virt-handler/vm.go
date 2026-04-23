@@ -750,19 +750,45 @@ func (c *VirtualMachineController) updateLiveMigrationConditions(vmi *v1.Virtual
 	}
 }
 
-func guestAgentConnected(domain *api.Domain) bool {
-	if domain != nil {
-		for _, channel := range domain.Spec.Devices.Channels {
-			if channel.Target != nil && channel.Target.Name == "org.qemu.guest_agent.0" &&
-				channel.Target.State == "connected" {
-				return true
-			}
-		}
+func (c *VirtualMachineController) queryVirtLauncherGuestAgentInfo(vmi *v1.VirtualMachineInstance) (*v1.VirtualMachineInstanceGuestAgentInfo, error) {
+	client, err := c.launcherClients.GetLauncherClient(vmi)
+	if err != nil {
+		return &v1.VirtualMachineInstanceGuestAgentInfo{}, err
 	}
-	return false
+	return client.GetGuestInfo(vmi)
 }
 
-func (c *VirtualMachineController) updateGuestAgentConditions(vmi *v1.VirtualMachineInstance, channelConnected bool, condManager *controller.VirtualMachineInstanceConditionManager) error {
+func (c *VirtualMachineController) guestAgentInfo(vmi *v1.VirtualMachineInstance, domain *api.Domain) (connected bool, supported bool, unsupportedReason string) {
+	guestInfo, err := c.queryVirtLauncherGuestAgentInfo(vmi)
+
+	if err != nil || guestInfo.GuestAgentConnected == nil || guestInfo.GuestAgentSupported == nil {
+		// Fallback for incremental upgrade.
+		// It should be safe to assume that if either GuestAgentConnected or GuestAgentSupported are unset that virt-launcher is old
+		if domain != nil {
+			for _, channel := range domain.Spec.Devices.Channels {
+				if channel.Target != nil && channel.Target.Name == "org.qemu.guest_agent.0" &&
+					channel.Target.State == "connected" {
+					connected = true
+					supported, unsupportedReason = util.IsGuestAgentSupported(vmi, guestInfo.SupportedCommands)
+					return
+				}
+			}
+		}
+		connected = false
+		supported = false
+		unsupportedReason = "guest agent not connected"
+	} else {
+		connected = *guestInfo.GuestAgentConnected
+		supported = *guestInfo.GuestAgentSupported
+		unsupportedReason = guestInfo.GuestAgentUnsupportedReason
+	}
+
+	return
+}
+
+func (c *VirtualMachineController) updateGuestAgentConditions(vmi *v1.VirtualMachineInstance, domain *api.Domain, condManager *controller.VirtualMachineInstanceConditionManager) {
+
+	channelConnected, supported, unsupportedReason := c.guestAgentInfo(vmi, domain)
 
 	// Update the condition when GA is connected
 	switch {
@@ -778,29 +804,13 @@ func (c *VirtualMachineController) updateGuestAgentConditions(vmi *v1.VirtualMac
 	}
 
 	if condManager.HasCondition(vmi, v1.VirtualMachineInstanceAgentConnected) {
-		client, err := c.launcherClients.GetLauncherClient(vmi)
-		if err != nil {
-			return err
-		}
-
-		guestInfo, err := client.GetGuestInfo(vmi)
-		if err != nil {
-			return err
-		}
-
-		var supported = false
-		var reason = ""
-
-		supported, reason = util.IsGuestAgentSupported(vmi, guestInfo.SupportedCommands)
-		c.logger.V(3).Object(vmi).Info(reason)
-
 		if !supported {
 			if !condManager.HasCondition(vmi, v1.VirtualMachineInstanceUnsupportedAgent) {
 				agentCondition := v1.VirtualMachineInstanceCondition{
 					Type:          v1.VirtualMachineInstanceUnsupportedAgent,
 					LastProbeTime: metav1.Now(),
 					Status:        k8sv1.ConditionTrue,
-					Reason:        reason,
+					Reason:        unsupportedReason,
 				}
 				vmi.Status.Conditions = append(vmi.Status.Conditions, agentCondition)
 			}
@@ -809,7 +819,6 @@ func (c *VirtualMachineController) updateGuestAgentConditions(vmi *v1.VirtualMac
 		}
 
 	}
-	return nil
 }
 
 func (c *VirtualMachineController) updatePausedConditions(vmi *v1.VirtualMachineInstance, domain *api.Domain, condManager *controller.VirtualMachineInstanceConditionManager) {
@@ -1023,16 +1032,11 @@ func (c *VirtualMachineController) updateVMIStatusFromDomain(vmi *v1.VirtualMach
 	return err
 }
 
-func (c *VirtualMachineController) updateVMIConditions(vmi *v1.VirtualMachineInstance, domain *api.Domain, condManager *controller.VirtualMachineInstanceConditionManager) error {
+func (c *VirtualMachineController) updateVMIConditions(vmi *v1.VirtualMachineInstance, domain *api.Domain, condManager *controller.VirtualMachineInstanceConditionManager) {
 	c.updateAccessCredentialConditions(vmi, domain, condManager)
 	c.updateLiveMigrationConditions(vmi, condManager)
-	err := c.updateGuestAgentConditions(vmi, guestAgentConnected(domain), condManager)
-	if err != nil {
-		return err
-	}
+	c.updateGuestAgentConditions(vmi, domain, condManager)
 	c.updatePausedConditions(vmi, domain, condManager)
-
-	return nil
 }
 
 func (c *VirtualMachineController) updateVMIStatus(oldStatus *v1.VirtualMachineInstanceStatus, vmi *v1.VirtualMachineInstance, domain *api.Domain, syncError error) (err error) {
@@ -1056,10 +1060,7 @@ func (c *VirtualMachineController) updateVMIStatus(oldStatus *v1.VirtualMachineI
 	}
 
 	// Update conditions on VMI Status
-	err = c.updateVMIConditions(vmi, domain, condManager)
-	if err != nil {
-		return err
-	}
+	c.updateVMIConditions(vmi, domain, condManager)
 
 	// Store containerdisks and kernelboot checksums
 	if err := c.updateChecksumInfo(vmi, syncError); err != nil {

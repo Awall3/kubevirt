@@ -2269,7 +2269,7 @@ func (l *LibvirtDomainManager) GetGuestInfo(vmi *v1.VirtualMachineInstance) (*v1
 	gaInfo := l.agentData.GetGA()
 
 	guestInfo := v1.VirtualMachineInstanceGuestAgentInfo{
-		GuestAgentConnected: agentConnectedStatus,
+		GuestAgentConnected: &agentConnectedStatus,
 		SupportedCommands:   gaInfo.SupportedCommands,
 		Hostname:            sysInfo.Hostname,
 		FSFreezeStatus:      fsFreezestatus.Status,
@@ -2305,12 +2305,14 @@ func (l *LibvirtDomainManager) GetGuestInfo(vmi *v1.VirtualMachineInstance) (*v1
 		})
 	}
 
-	// Determine whether the guest agent is supported
-	supported, reason := pkgutil.IsGuestAgentSupported(vmi, guestInfo.SupportedCommands)
-	log.Log.V(3).Object(vmi).Info(reason)
+	if vmi != nil {
+		// Determine whether the guest agent is supported
+		supported, reason := pkgutil.IsGuestAgentSupported(vmi, guestInfo.SupportedCommands)
+		log.Log.V(3).Object(vmi).Info(reason)
 
-	guestInfo.GuestAgentSupported = supported
-	guestInfo.GuestAgentUnsupportedReason = reason
+		guestInfo.GuestAgentSupported = &supported
+		guestInfo.GuestAgentUnsupportedReason = reason
+	}
 
 	return &guestInfo, nil
 }

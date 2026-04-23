@@ -717,7 +717,7 @@ var _ = Describe("VirtualMachineInstance", func() {
 
 			// Make the mock launcher client return GuestAgentInfo with
 			// GuestAgentConnected true and GuestAgentSupported false
-			client.EXPECT().GetGuestInfo(gomock.Any()).Return(&v1.VirtualMachineInstanceGuestAgentInfo{GuestAgentConnected: true, GuestAgentSupported: false}, nil)
+			client.EXPECT().GetGuestInfo(gomock.Any()).Return(&v1.VirtualMachineInstanceGuestAgentInfo{GuestAgentConnected: pointer.P(true), GuestAgentSupported: pointer.P(false)}, nil)
 
 			client.EXPECT().SyncVirtualMachine(vmi, gomock.Any()).Do(func(vmi *v1.VirtualMachineInstance, options *cmdv1.VirtualMachineOptions) {
 				Expect(options.VirtualMachineSMBios.Family).To(Equal(virtconfig.SmbiosConfigDefaultFamily))
@@ -782,7 +782,7 @@ var _ = Describe("VirtualMachineInstance", func() {
 
 			// Make the mock launcher client return GuestAgentInfo with
 			// GuestAgentConnected true and GuestAgentSupported false
-			client.EXPECT().GetGuestInfo(gomock.Any()).Return(&v1.VirtualMachineInstanceGuestAgentInfo{GuestAgentConnected: true, GuestAgentSupported: false}, nil)
+			client.EXPECT().GetGuestInfo(gomock.Any()).Return(&v1.VirtualMachineInstanceGuestAgentInfo{GuestAgentConnected: pointer.P(true), GuestAgentSupported: pointer.P(false)}, nil)
 			client.EXPECT().SyncVirtualMachine(vmi, gomock.Any()).Do(func(vmi *v1.VirtualMachineInstance, options *cmdv1.VirtualMachineOptions) {
 				Expect(options.VirtualMachineSMBios.Family).To(Equal(virtconfig.SmbiosConfigDefaultFamily))
 				Expect(options.VirtualMachineSMBios.Product).To(Equal(virtconfig.SmbiosConfigDefaultProduct))
@@ -819,7 +819,7 @@ var _ = Describe("VirtualMachineInstance", func() {
 
 			// Make the mock launcher client return GuestAgentInfo with
 			// GuestAgentConnected false and GuestAgentSupported false
-			client.EXPECT().GetGuestInfo(gomock.Any()).Return(&v1.VirtualMachineInstanceGuestAgentInfo{GuestAgentConnected: false, GuestAgentSupported: false}, nil)
+			client.EXPECT().GetGuestInfo(gomock.Any()).Return(&v1.VirtualMachineInstanceGuestAgentInfo{GuestAgentConnected: pointer.P(false), GuestAgentSupported: pointer.P(false)}, nil)
 			client.EXPECT().SyncVirtualMachine(vmi, gomock.Any()).Do(func(vmi *v1.VirtualMachineInstance, options *cmdv1.VirtualMachineOptions) {
 				Expect(options.VirtualMachineSMBios.Family).To(Equal(virtconfig.SmbiosConfigDefaultFamily))
 				Expect(options.VirtualMachineSMBios.Product).To(Equal(virtconfig.SmbiosConfigDefaultProduct))

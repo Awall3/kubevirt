@@ -32,7 +32,6 @@ import (
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/cli"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/stats"
-	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/util"
 )
 
 // AgentCommand is a command executable on guest agent
@@ -285,13 +284,12 @@ func incrementPollInterval(interval, maxInterval time.Duration) time.Duration {
 }
 
 type AgentPoller struct {
-	Connection     cli.Connection
-	VmiUID         types.UID
-	domainName     string
-	agentDone      chan struct{}
-	agentConnected bool
-	workers        []PollerWorker
-	agentStore     *AsyncAgentStore
+	Connection cli.Connection
+	VmiUID     types.UID
+	domainName string
+	agentDone  chan struct{}
+	workers    []PollerWorker
+	agentStore *AsyncAgentStore
 }
 
 // CreatePoller creates the new structure that holds guest agent pollers
@@ -307,16 +305,11 @@ func CreatePoller(
 	qemuAgentFSFreezeStatusInterval time.Duration,
 ) *AgentPoller {
 	return &AgentPoller{
-		Connection:     connection,
-		VmiUID:         vmiUID,
-		domainName:     domainName,
-		agentConnected: false,
-		agentStore:     store,
+		Connection: connection,
+		VmiUID:     vmiUID,
+		domainName: domainName,
+		agentStore: store,
 		workers: []PollerWorker{
-			// Polling for agent connection status
-			{
-				CallTick: qemuAgentSysInterval,
-			},
 			// Polling for QEMU agent commands
 			{
 				CallTick:      qemuAgentVersionInterval,
@@ -367,11 +360,8 @@ func (p *AgentPoller) Start() {
 		go worker.Poll(func() {
 			if len(worker.AgentCommands) != 0 {
 				executeAgentCommands(worker.AgentCommands, p)
-			} else if worker.InfoTypes != 0 {
-				fetchAndStoreGuestInfo(worker.InfoTypes, p)
 			} else {
-				// Poll for the connection status of the agent
-				fetchAndStoreAgentConnectedInfo(p)
+				fetchAndStoreGuestInfo(worker.InfoTypes, p)
 			}
 		}, p.agentDone, pollInitialInterval)
 	}
@@ -382,6 +372,7 @@ func (p *AgentPoller) Stop() {
 	if p.agentDone != nil {
 		close(p.agentDone)
 		p.agentDone = nil
+		p.agentStore.Store(AgentConnectedStatus, false)
 	}
 }
 
@@ -397,7 +388,8 @@ func (p *AgentPoller) UpdateFromEvent(domainEvent *libvirt.DomainEventLifecycle,
 		if domainEvent.Event == libvirt.DOMAIN_EVENT_RESUMED {
 			// Only start poller on domain resume if agent is still connected
 			// This prevents starting the poller before agent is ready
-			if p.agentConnected {
+			connected, ok := p.agentStore.store.Load(AgentConnectedStatus)
+			if ok && connected.(bool) {
 				log.Log.Infof("Starting agent poller for %s due to domain resume (agent connected)", p.domainName)
 				p.Start()
 			}
@@ -406,13 +398,13 @@ func (p *AgentPoller) UpdateFromEvent(domainEvent *libvirt.DomainEventLifecycle,
 	case agentEvent != nil:
 		if agentEvent.State == libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_STATE_DISCONNECTED {
 			log.Log.Infof("Stopping agent poller for %s due to agent disconnect", p.domainName)
-			p.agentConnected = false
+			p.agentStore.Store(AgentConnectedStatus, false)
 			p.Stop()
 			return
 		}
 		if agentEvent.State == libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_STATE_CONNECTED {
 			log.Log.Infof("Starting agent poller for %s due to agent connect", p.domainName)
-			p.agentConnected = true
+			p.agentStore.Store(AgentConnectedStatus, true)
 			p.Start()
 			return
 		}
@@ -508,42 +500,6 @@ func fetchAndStoreGuestInfo(infoTypes libvirt.DomainGuestInfoTypes, agentPoller 
 	if infoTypes&libvirt.DOMAIN_GUEST_INFO_USERS != 0 {
 		agentPoller.agentStore.Store(libvirt.DOMAIN_GUEST_INFO_USERS, convertToUsers(guestInfo))
 	}
-}
-
-func fetchAndStoreAgentConnectedInfo(agentPoller *AgentPoller) {
-	domain, err := agentPoller.Connection.LookupDomainByName(agentPoller.domainName)
-	if err != nil {
-		log.Log.Errorf("Domain lookup failed: %v", err)
-		return
-	}
-
-	// Ignoring errors from domain.Free() is safe because it
-	// only fails if called multiple times or if the domain object
-	// is invalid, neither of which is the case here.
-	defer func() { _ = domain.Free() }()
-
-	domainSpec, err := util.GetDomainSpecWithFlags(domain, 0)
-	if err != nil {
-		log.Log.Errorf("Error converting domain to domainSpec: %v", err)
-		return
-	}
-
-	channelConnected := false
-	if domainSpec != nil {
-		for _, channel := range domainSpec.Devices.Channels {
-			if channel.Target != nil {
-				log.Log.Infof("Channel: %s, %s", channel.Target.Name, channel.Target.State)
-				if channel.Target.Name == "org.qemu.guest_agent.0" {
-					if channel.Target.State == "connected" {
-						channelConnected = true
-					}
-				}
-
-			}
-		}
-	}
-
-	agentPoller.agentStore.Store(AgentConnectedStatus, channelConnected)
 }
 
 func convertToInterfaces(guestInfo *libvirt.DomainGuestInfo) []api.InterfaceStatus {

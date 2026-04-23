@@ -520,10 +520,9 @@ func (l *Launcher) GetDomainDirtyRateStats(_ context.Context, _ *cmdv1.EmptyRequ
 
 // GetGuestInfo collect guest info from the domain
 func (l *Launcher) GetGuestInfo(_ context.Context, request *cmdv1.VMIRequest) (*cmdv1.GuestInfoResponse, error) {
-	vmi, vmiResponse := getVMIFromRequest(request.Vmi)
-	if !vmiResponse.Success {
-		return nil, fmt.Errorf("failed to get VMI from request: %s", vmiResponse.Message)
-	}
+	// Ignore VMI unmarshalling failures for incremental upgrade of virt-handler
+	// When virt-handler fully drops guest agent features unmarshalling success should be enforced
+	vmi, _ := getVMIFromRequest(request.Vmi)
 
 	response := &cmdv1.GuestInfoResponse{
 		Response: &cmdv1.Response{

@@ -2590,8 +2590,7 @@ var _ = Describe("Manager", func() {
 		// we need the non-typecast object to make the function we want to test available
 		libvirtmanager := manager.(*LibvirtDomainManager)
 
-		vmi := newVMI(testNamespace, testVmName)
-		guestInfo, _ := libvirtmanager.GetGuestInfo(vmi)
+		guestInfo := libvirtmanager.GetGuestInfo()
 		Expect(guestInfo.UserList).To(ConsistOf(v1.VirtualMachineInstanceGuestOSUser{
 			UserName:  "test",
 			Domain:    "test",
@@ -2882,9 +2881,9 @@ var _ = Describe("Manager", func() {
 		})
 
 		It("should succeed with empty VMI and basic commands", func() {
-			result, reason := pkgutil.IsGuestAgentSupported(vmi, basicCommands)
-			Expect(result).To(BeTrue())
-			Expect(reason).To(Equal(agentSupported))
+			supported := pkgutil.IsGuestAgentSupported(vmi, basicCommands)
+			Expect(supported.IsSupported).To(BeTrue())
+			Expect(supported.UnsupportedReason).To(Equal(agentSupported))
 		})
 
 		It("should succeed with empty VMI and all commands", func() {
@@ -2893,15 +2892,15 @@ var _ = Describe("Manager", func() {
 			commands = append(commands, sshCommands...)
 			commands = append(commands, passwordCommands...)
 
-			result, reason := pkgutil.IsGuestAgentSupported(vmi, commands)
-			Expect(result).To(BeTrue())
-			Expect(reason).To(Equal(agentSupported))
+			supported := pkgutil.IsGuestAgentSupported(vmi, commands)
+			Expect(supported.IsSupported).To(BeTrue())
+			Expect(supported.UnsupportedReason).To(Equal(agentSupported))
 		})
 
 		It("should fail with password and basic commands", func() {
-			result, reason := pkgutil.IsGuestAgentSupported(vmiWithPassword, basicCommands)
-			Expect(result).To(BeFalse())
-			Expect(reason).To(Equal("This guest agent doesn't support required password commands"))
+			supported := pkgutil.IsGuestAgentSupported(vmiWithPassword, basicCommands)
+			Expect(supported.IsSupported).To(BeFalse())
+			Expect(supported.UnsupportedReason).To(Equal("This guest agent doesn't support required password commands"))
 		})
 
 		It("should succeed with password and required commands", func() {
@@ -2909,15 +2908,15 @@ var _ = Describe("Manager", func() {
 			commands = append(commands, basicCommands...)
 			commands = append(commands, passwordCommands...)
 
-			result, reason := pkgutil.IsGuestAgentSupported(vmiWithPassword, commands)
-			Expect(result).To(BeTrue())
-			Expect(reason).To(Equal(agentSupported))
+			supported := pkgutil.IsGuestAgentSupported(vmiWithPassword, commands)
+			Expect(supported.IsSupported).To(BeTrue())
+			Expect(supported.UnsupportedReason).To(Equal(agentSupported))
 		})
 
 		It("should fail with SSH and basic commands", func() {
-			result, reason := pkgutil.IsGuestAgentSupported(vmiWithSSH, basicCommands)
-			Expect(result).To(BeFalse())
-			Expect(reason).To(Equal("This guest agent doesn't support required public key commands"))
+			supported := pkgutil.IsGuestAgentSupported(vmiWithSSH, basicCommands)
+			Expect(supported.IsSupported).To(BeFalse())
+			Expect(supported.UnsupportedReason).To(Equal("This guest agent doesn't support required public key commands"))
 		})
 
 		It("should succeed with SSH and required commands", func() {
@@ -2925,9 +2924,9 @@ var _ = Describe("Manager", func() {
 			commands = append(commands, basicCommands...)
 			commands = append(commands, sshCommands...)
 
-			result, reason := pkgutil.IsGuestAgentSupported(vmiWithSSH, commands)
-			Expect(result).To(BeTrue())
-			Expect(reason).To(Equal(agentSupported))
+			supported := pkgutil.IsGuestAgentSupported(vmiWithSSH, commands)
+			Expect(supported.IsSupported).To(BeTrue())
+			Expect(supported.UnsupportedReason).To(Equal(agentSupported))
 		})
 
 		It("should succeed with SSH and old required commands", func() {
@@ -2935,9 +2934,9 @@ var _ = Describe("Manager", func() {
 			commands = append(commands, basicCommands...)
 			commands = append(commands, oldSshCommands...)
 
-			result, reason := pkgutil.IsGuestAgentSupported(vmiWithSSH, commands)
-			Expect(result).To(BeTrue())
-			Expect(reason).To(Equal(agentSupported))
+			supported := pkgutil.IsGuestAgentSupported(vmiWithSSH, commands)
+			Expect(supported.IsSupported).To(BeTrue())
+			Expect(supported.UnsupportedReason).To(Equal(agentSupported))
 		})
 	})
 

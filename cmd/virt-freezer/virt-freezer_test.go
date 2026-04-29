@@ -9,7 +9,6 @@ import (
 	"go.uber.org/mock/gomock"
 	v1 "kubevirt.io/api/core/v1"
 
-	"kubevirt.io/kubevirt/pkg/libvmi"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 
 	cmdclient "kubevirt.io/kubevirt/pkg/virt-handler/cmd-client"
@@ -20,7 +19,6 @@ var _ = Describe("Freezer", func() {
 		client    *cmdclient.MockLauncherClient
 		config    *FreezerConfig
 		guestInfo *v1.VirtualMachineInstanceGuestAgentInfo
-		testvmi   *v1.VirtualMachineInstance
 	)
 
 	BeforeEach(func() {
@@ -45,7 +43,6 @@ var _ = Describe("Freezer", func() {
 				{Name: "guest-get-osinfo", Enabled: true},
 			},
 		}
-		testvmi = libvmi.New(libvmi.WithName(config.Name), libvmi.WithNamespace(config.Namespace))
 	})
 
 	Describe("shouldFreezeVirtualMachine", func() {
@@ -95,21 +92,21 @@ var _ = Describe("Freezer", func() {
 			config.Freeze = true
 		})
 		It("should return error if get guest agent fails", func() {
-			client.EXPECT().GetGuestInfo(testvmi).Return(nil, errors.New("guest info error"))
+			client.EXPECT().GetGuestInfo().Return(nil, errors.New("guest info error"))
 
 			err := run(config, client)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("returns nil and skip freeze if guest agent version is empty", func() {
-			client.EXPECT().GetGuestInfo(testvmi).Return(&v1.VirtualMachineInstanceGuestAgentInfo{}, nil)
+			client.EXPECT().GetGuestInfo().Return(&v1.VirtualMachineInstanceGuestAgentInfo{}, nil)
 
 			err := run(config, client)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("returns nil and skip freeze if vm domain not running", func() {
-			client.EXPECT().GetGuestInfo(testvmi).Return(guestInfo, nil)
+			client.EXPECT().GetGuestInfo().Return(guestInfo, nil)
 			client.EXPECT().GetDomain().Return(&api.Domain{
 				Status: api.DomainStatus{
 					Status: api.Paused,
@@ -121,7 +118,7 @@ var _ = Describe("Freezer", func() {
 		})
 
 		It("should succeed if Freeze VirtualMachine", func() {
-			client.EXPECT().GetGuestInfo(testvmi).Return(guestInfo, nil)
+			client.EXPECT().GetGuestInfo().Return(guestInfo, nil)
 			client.EXPECT().GetDomain().Return(&api.Domain{Status: api.DomainStatus{Status: api.Running}}, true, nil)
 			client.EXPECT().FreezeVirtualMachine(gomock.Any(), gomock.Any()).Return(nil)
 
@@ -130,7 +127,7 @@ var _ = Describe("Freezer", func() {
 		})
 
 		It("returns error if FreezeVirtualMachine fails", func() {
-			client.EXPECT().GetGuestInfo(testvmi).Return(guestInfo, nil)
+			client.EXPECT().GetGuestInfo().Return(guestInfo, nil)
 			client.EXPECT().GetDomain().Return(&api.Domain{Status: api.DomainStatus{Status: api.Running}}, true, nil)
 			client.EXPECT().FreezeVirtualMachine(gomock.Any(), gomock.Any()).Return(errors.New("freeze failed"))
 
@@ -144,7 +141,7 @@ var _ = Describe("Freezer", func() {
 			config.Unfreeze = true
 		})
 		It("should succeed if Unfreeze VirtualMachine", func() {
-			client.EXPECT().GetGuestInfo(testvmi).Return(guestInfo, nil)
+			client.EXPECT().GetGuestInfo().Return(guestInfo, nil)
 			client.EXPECT().GetDomain().Return(&api.Domain{Status: api.DomainStatus{Status: api.Running}}, true, nil)
 			client.EXPECT().UnfreezeVirtualMachine(gomock.Any()).Return(nil)
 
@@ -153,7 +150,7 @@ var _ = Describe("Freezer", func() {
 		})
 
 		It("returns error if UnfreezeVirtualMachine fails", func() {
-			client.EXPECT().GetGuestInfo(testvmi).Return(guestInfo, nil)
+			client.EXPECT().GetGuestInfo().Return(guestInfo, nil)
 			client.EXPECT().GetDomain().Return(&api.Domain{Status: api.DomainStatus{Status: api.Running}}, true, nil)
 			client.EXPECT().UnfreezeVirtualMachine(gomock.Any()).Return(errors.New("unfreeze failed"))
 

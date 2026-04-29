@@ -455,7 +455,7 @@ func (n *Notifier) StartDomainNotifier(
 
 	agentPoller := agentpoller.CreatePoller(
 		domainConn,
-		vmi.UID,
+		vmi,
 		domainName,
 		agentStore,
 		qemuAgentSysInterval,

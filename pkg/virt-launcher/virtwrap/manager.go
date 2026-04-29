@@ -82,7 +82,6 @@ import (
 	storagetypes "kubevirt.io/kubevirt/pkg/storage/types"
 	"kubevirt.io/kubevirt/pkg/unsafepath"
 	kutil "kubevirt.io/kubevirt/pkg/util"
-	pkgutil "kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/util/hardware"
 	hw_utils "kubevirt.io/kubevirt/pkg/util/hardware"
 	cmdclient "kubevirt.io/kubevirt/pkg/virt-handler/cmd-client"
@@ -149,7 +148,7 @@ type DomainManager interface {
 	PrepareMigrationTarget(*v1.VirtualMachineInstance, bool, *cmdv1.VirtualMachineOptions) error
 	GetDomainStats() (*stats.DomainStats, error)
 	CancelVMIMigration(*v1.VirtualMachineInstance) error
-	GetGuestInfo(vmi *v1.VirtualMachineInstance) (*v1.VirtualMachineInstanceGuestAgentInfo, error)
+	GetGuestInfo() *v1.VirtualMachineInstanceGuestAgentInfo
 	GetUsers() []v1.VirtualMachineInstanceGuestOSUser
 	GetFilesystems() []v1.VirtualMachineInstanceFileSystem
 	FinalizeVirtualMachineMigration(*v1.VirtualMachineInstance, *cmdv1.VirtualMachineOptions) error
@@ -2256,7 +2255,7 @@ func (l *LibvirtDomainManager) buildDevicesMetadata(vmi *v1.VirtualMachineInstan
 }
 
 // GetGuestInfo queries the agent store and return the aggregated data from Guest agent
-func (l *LibvirtDomainManager) GetGuestInfo(vmi *v1.VirtualMachineInstance) (*v1.VirtualMachineInstanceGuestAgentInfo, error) {
+func (l *LibvirtDomainManager) GetGuestInfo() *v1.VirtualMachineInstanceGuestAgentInfo {
 	agentConnectedStatus := l.agentData.GetAgentConnectedStatus()
 	sysInfo := l.agentData.GetSysInfo()
 	fsInfo := l.agentData.GetFS(10)
@@ -2305,16 +2304,10 @@ func (l *LibvirtDomainManager) GetGuestInfo(vmi *v1.VirtualMachineInstance) (*v1
 		})
 	}
 
-	if vmi != nil {
-		// Determine whether the guest agent is supported
-		supported, reason := pkgutil.IsGuestAgentSupported(vmi, guestInfo.SupportedCommands)
-		log.Log.V(3).Object(vmi).Info(reason)
+	supported := l.agentData.GetAgentSupportedStatus()
+	guestInfo.GuestAgentSupported, guestInfo.GuestAgentUnsupportedReason = &supported.IsSupported, supported.UnsupportedReason
 
-		guestInfo.GuestAgentSupported = &supported
-		guestInfo.GuestAgentUnsupportedReason = reason
-	}
-
-	return &guestInfo, nil
+	return &guestInfo
 }
 
 // InterfacesStatus returns the interfaces Guest Agent reported

@@ -755,7 +755,7 @@ func (c *VirtualMachineController) queryVirtLauncherGuestAgentInfo(vmi *v1.Virtu
 	if err != nil {
 		return &v1.VirtualMachineInstanceGuestAgentInfo{}, err
 	}
-	return client.GetGuestInfo(vmi)
+	return client.GetGuestInfo()
 }
 
 func (c *VirtualMachineController) guestAgentInfo(vmi *v1.VirtualMachineInstance, domain *api.Domain) (connected bool, supported bool, unsupportedReason string) {
@@ -769,7 +769,8 @@ func (c *VirtualMachineController) guestAgentInfo(vmi *v1.VirtualMachineInstance
 				if channel.Target != nil && channel.Target.Name == "org.qemu.guest_agent.0" &&
 					channel.Target.State == "connected" {
 					connected = true
-					supported, unsupportedReason = util.IsGuestAgentSupported(vmi, guestInfo.SupportedCommands)
+					agentSupported := util.IsGuestAgentSupported(vmi, guestInfo.SupportedCommands)
+					supported, unsupportedReason = agentSupported.IsSupported, agentSupported.UnsupportedReason
 					return
 				}
 			}

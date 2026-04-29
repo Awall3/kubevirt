@@ -192,18 +192,18 @@ func (mr *MockLauncherClientMockRecorder) GetFilesystems() *gomock.Call {
 }
 
 // GetGuestInfo mocks base method.
-func (m *MockLauncherClient) GetGuestInfo(vmi *v1.VirtualMachineInstance) (*v1.VirtualMachineInstanceGuestAgentInfo, error) {
+func (m *MockLauncherClient) GetGuestInfo() (*v1.VirtualMachineInstanceGuestAgentInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetGuestInfo", vmi)
+	ret := m.ctrl.Call(m, "GetGuestInfo")
 	ret0, _ := ret[0].(*v1.VirtualMachineInstanceGuestAgentInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetGuestInfo indicates an expected call of GetGuestInfo.
-func (mr *MockLauncherClientMockRecorder) GetGuestInfo(vmi any) *gomock.Call {
+func (mr *MockLauncherClientMockRecorder) GetGuestInfo() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGuestInfo", reflect.TypeOf((*MockLauncherClient)(nil).GetGuestInfo), vmi)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGuestInfo", reflect.TypeOf((*MockLauncherClient)(nil).GetGuestInfo))
 }
 
 // GetLaunchMeasurement mocks base method.

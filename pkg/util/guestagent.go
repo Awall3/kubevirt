@@ -53,6 +53,12 @@ var PasswordRelatedGuestAgentCommands = []string{
 	"guest-set-user-password",
 }
 
+type GuestSupportedData struct {
+	IsSupported bool
+	// Empty if guest is supported
+	UnsupportedReason string
+}
+
 func guestAgentCommandSubsetSupported(requiredCommands []string, availableCmdsMap map[string]bool) bool {
 	for _, cmd := range requiredCommands {
 		if enabled, exists := availableCmdsMap[cmd]; !exists || !enabled {
@@ -62,14 +68,14 @@ func guestAgentCommandSubsetSupported(requiredCommands []string, availableCmdsMa
 	return true
 }
 
-func IsGuestAgentSupported(vmi *v1.VirtualMachineInstance, commands []v1.GuestAgentCommandInfo) (bool, string) {
+func IsGuestAgentSupported(vmi *v1.VirtualMachineInstance, commands []v1.GuestAgentCommandInfo) GuestSupportedData {
 	availableCmdsMap := make(map[string]bool, len(commands))
 	for _, command := range commands {
 		availableCmdsMap[command.Name] = command.Enabled
 	}
 
 	if !guestAgentCommandSubsetSupported(RequiredGuestAgentCommands, availableCmdsMap) {
-		return false, "This guest agent doesn't support required basic commands"
+		return GuestSupportedData{false, "This guest agent doesn't support required basic commands"}
 	}
 
 	checkSSH := false
@@ -89,14 +95,14 @@ func IsGuestAgentSupported(vmi *v1.VirtualMachineInstance, commands []v1.GuestAg
 	}
 
 	if checkSSH && !sshRelatedCommandsSupported(availableCmdsMap) {
-		return false, "This guest agent doesn't support required public key commands"
+		return GuestSupportedData{false, "This guest agent doesn't support required public key commands"}
 	}
 
 	if checkPasswd && !guestAgentCommandSubsetSupported(PasswordRelatedGuestAgentCommands, availableCmdsMap) {
-		return false, "This guest agent doesn't support required password commands"
+		return GuestSupportedData{false, "This guest agent doesn't support required password commands"}
 	}
 
-	return true, "This guest agent is supported"
+	return GuestSupportedData{true, ""}
 }
 
 func sshRelatedCommandsSupported(availableCmdsMap map[string]bool) bool {

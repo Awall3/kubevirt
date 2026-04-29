@@ -5645,6 +5645,16 @@ func (in *VirtualMachineInstanceGuestAgentInfo) DeepCopyInto(out *VirtualMachine
 		copy(*out, *in)
 	}
 	in.FSInfo.DeepCopyInto(&out.FSInfo)
+	if in.GuestAgentConnected != nil {
+		in, out := &in.GuestAgentConnected, &out.GuestAgentConnected
+		*out = new(bool)
+		**out = **in
+	}
+	if in.GuestAgentSupported != nil {
+		in, out := &in.GuestAgentSupported, &out.GuestAgentSupported
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

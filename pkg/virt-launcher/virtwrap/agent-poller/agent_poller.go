@@ -24,11 +24,12 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/types"
 	"libvirt.org/go/libvirt"
 
+	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/log"
 
+	"kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/cli"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/stats"
@@ -46,6 +47,7 @@ const (
 	GetFSFreezeStatus AgentCommand = "guest-fsfreeze-status"
 
 	AgentConnectedStatus string = "agent-connected-status"
+	AgentSupportedStatus string = "agent-supported-status"
 
 	pollInitialInterval = 10 * time.Second
 
@@ -234,6 +236,19 @@ func (s *AsyncAgentStore) GetAgentConnectedStatus() bool {
 	return data.(bool)
 }
 
+// GetAgentSupportedStatus returns whether the GA supports required commands
+func (s *AsyncAgentStore) GetAgentSupportedStatus() *util.GuestSupportedData {
+	data, ok := s.store.Load(AgentSupportedStatus)
+
+	supported := util.GuestSupportedData{}
+	if !ok {
+		return &supported
+	}
+
+	supported = data.(util.GuestSupportedData)
+	return &supported
+}
+
 // PollerWorker collects the data from the guest agent
 // only unique items are stored as configuration
 type PollerWorker struct {
@@ -285,7 +300,7 @@ func incrementPollInterval(interval, maxInterval time.Duration) time.Duration {
 
 type AgentPoller struct {
 	Connection cli.Connection
-	VmiUID     types.UID
+	vmi        *v1.VirtualMachineInstance
 	domainName string
 	agentDone  chan struct{}
 	workers    []PollerWorker
@@ -295,7 +310,7 @@ type AgentPoller struct {
 // CreatePoller creates the new structure that holds guest agent pollers
 func CreatePoller(
 	connection cli.Connection,
-	vmiUID types.UID,
+	vmi *v1.VirtualMachineInstance,
 	domainName string,
 	store *AsyncAgentStore,
 	qemuAgentSysInterval time.Duration,
@@ -306,7 +321,7 @@ func CreatePoller(
 ) *AgentPoller {
 	return &AgentPoller{
 		Connection: connection,
-		VmiUID:     vmiUID,
+		vmi:        vmi,
 		domainName: domainName,
 		agentStore: store,
 		workers: []PollerWorker{
@@ -372,7 +387,6 @@ func (p *AgentPoller) Stop() {
 	if p.agentDone != nil {
 		close(p.agentDone)
 		p.agentDone = nil
-		p.agentStore.Store(AgentConnectedStatus, false)
 	}
 }
 
@@ -388,8 +402,7 @@ func (p *AgentPoller) UpdateFromEvent(domainEvent *libvirt.DomainEventLifecycle,
 		if domainEvent.Event == libvirt.DOMAIN_EVENT_RESUMED {
 			// Only start poller on domain resume if agent is still connected
 			// This prevents starting the poller before agent is ready
-			connected, ok := p.agentStore.store.Load(AgentConnectedStatus)
-			if ok && connected.(bool) {
+			if p.agentStore.GetAgentConnectedStatus() {
 				log.Log.Infof("Starting agent poller for %s due to domain resume (agent connected)", p.domainName)
 				p.Start()
 			}
@@ -405,6 +418,12 @@ func (p *AgentPoller) UpdateFromEvent(domainEvent *libvirt.DomainEventLifecycle,
 		if agentEvent.State == libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_STATE_CONNECTED {
 			log.Log.Infof("Starting agent poller for %s due to agent connect", p.domainName)
 			p.agentStore.Store(AgentConnectedStatus, true)
+			// Determine whether the guest agent is supported
+			guestInfo := p.agentStore.GetGA()
+			supported := util.IsGuestAgentSupported(p.vmi, guestInfo.SupportedCommands)
+			p.agentStore.Store(AgentSupportedStatus, supported)
+			log.Log.Infof("Agent supports commands: %v", guestInfo.SupportedCommands)
+			log.Log.Infof("Agent is supported: %v, reason %s", supported.IsSupported, supported.UnsupportedReason)
 			p.Start()
 			return
 		}

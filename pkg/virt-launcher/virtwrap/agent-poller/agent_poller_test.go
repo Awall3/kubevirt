@@ -20,6 +20,7 @@
 package agentpoller
 
 import (
+	"encoding/json"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -28,6 +29,9 @@ import (
 
 	"libvirt.org/go/libvirt"
 
+	v1 "kubevirt.io/api/core/v1"
+
+	"kubevirt.io/kubevirt/pkg/util"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/testing"
 )
@@ -260,6 +264,8 @@ var _ = Describe("Qemu agent poller", func() {
 
 	Context("UpdateFromEvent", func() {
 		var agentPoller *AgentPoller
+		var cmdResult string
+		const domainName = "test-domain"
 
 		BeforeEach(func() {
 			agentPoller = &AgentPoller{
@@ -267,6 +273,18 @@ var _ = Describe("Qemu agent poller", func() {
 				domainName: "test-domain",
 				agentStore: &agentStore,
 			}
+			info := AgentInfo{
+				SupportedCommands: make([]v1.GuestAgentCommandInfo, len(util.RequiredGuestAgentCommands)),
+			}
+			for i := range util.RequiredGuestAgentCommands {
+				info.SupportedCommands[i] = v1.GuestAgentCommandInfo{
+					Name:    util.RequiredGuestAgentCommands[i],
+					Enabled: true,
+				}
+			}
+			agentData, err := json.Marshal(info)
+			Expect(err).To(BeNil())
+			cmdResult = string(agentData)
 		})
 
 		It("should stop agent poller on domain suspend event", func() {
@@ -289,6 +307,7 @@ var _ = Describe("Qemu agent poller", func() {
 				State:  libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_STATE_CONNECTED,
 				Reason: libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_REASON_CHANNEL,
 			}
+			mockLibvirt.VirtConnection.EXPECT().QemuAgentCommand(`{"execute":"`+string(GetAgent)+`"}`, domainName).Return(`{"return":{`+cmdResult+`}}`, nil)
 			agentPoller.UpdateFromEvent(nil, agentConnectEvent)
 
 			// Stop to simulate domain suspend
@@ -323,6 +342,7 @@ var _ = Describe("Qemu agent poller", func() {
 				State:  libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_STATE_CONNECTED,
 				Reason: libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_REASON_CHANNEL,
 			}
+			mockLibvirt.VirtConnection.EXPECT().QemuAgentCommand(`{"execute":"`+string(GetAgent)+`"}`, domainName).Return(`{"return":{`+cmdResult+`}}`, nil)
 			agentPoller.UpdateFromEvent(nil, agentConnectEvent)
 			Expect(agentPoller.agentDone).ToNot(BeNil())
 			Expect(agentPoller.agentStore.GetAgentConnectedStatus()).To(BeTrue())
@@ -345,6 +365,7 @@ var _ = Describe("Qemu agent poller", func() {
 				State:  libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_STATE_CONNECTED,
 				Reason: libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_REASON_CHANNEL,
 			}
+			mockLibvirt.VirtConnection.EXPECT().QemuAgentCommand(`{"execute":"`+string(GetAgent)+`"}`, domainName).Return(`{"return":{`+cmdResult+`}}`, nil)
 			agentPoller.UpdateFromEvent(nil, agentEvent)
 
 			Expect(agentPoller.agentDone).ToNot(BeNil())

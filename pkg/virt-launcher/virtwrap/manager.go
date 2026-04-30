@@ -2266,12 +2266,15 @@ func (l *LibvirtDomainManager) GetGuestInfo() *v1.VirtualMachineInstanceGuestAge
 	}
 
 	gaInfo := l.agentData.GetGA()
+	supported := l.agentData.GetAgentSupportedStatus()
 
 	guestInfo := v1.VirtualMachineInstanceGuestAgentInfo{
-		GuestAgentConnected: &agentConnectedStatus,
-		SupportedCommands:   gaInfo.SupportedCommands,
-		Hostname:            sysInfo.Hostname,
-		FSFreezeStatus:      fsFreezestatus.Status,
+		GuestAgentConnected:         &agentConnectedStatus,
+		SupportedCommands:           gaInfo.SupportedCommands,
+		GuestAgentSupported:         &supported.IsSupported,
+		GuestAgentUnsupportedReason: supported.UnsupportedReason,
+		Hostname:                    sysInfo.Hostname,
+		FSFreezeStatus:              fsFreezestatus.Status,
 		OS: v1.VirtualMachineInstanceGuestOSInfo{
 			Name:          sysInfo.OSInfo.Name,
 			KernelRelease: sysInfo.OSInfo.KernelRelease,
@@ -2303,9 +2306,6 @@ func (l *LibvirtDomainManager) GetGuestInfo() *v1.VirtualMachineInstanceGuestAge
 			Disk:           l.parseFSDisks(fs.Disk),
 		})
 	}
-
-	supported := l.agentData.GetAgentSupportedStatus()
-	guestInfo.GuestAgentSupported, guestInfo.GuestAgentUnsupportedReason = &supported.IsSupported, supported.UnsupportedReason
 
 	return &guestInfo
 }

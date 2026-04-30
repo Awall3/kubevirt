@@ -2816,7 +2816,7 @@ var _ = Describe("Manager", func() {
 		var sshCommands []v1.GuestAgentCommandInfo
 		var oldSshCommands []v1.GuestAgentCommandInfo
 		var passwordCommands []v1.GuestAgentCommandInfo
-		const agentSupported = "This guest agent is supported"
+		const agentSupported = ""
 
 		BeforeEach(func() {
 			vmi = &v1.VirtualMachineInstance{}

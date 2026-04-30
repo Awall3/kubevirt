@@ -325,11 +325,6 @@ func CreatePoller(
 		domainName: domainName,
 		agentStore: store,
 		workers: []PollerWorker{
-			// Polling for QEMU agent commands
-			{
-				CallTick:      qemuAgentVersionInterval,
-				AgentCommands: []AgentCommand{GetAgent},
-			},
 			{
 				CallTick:      qemuAgentFileInterval,
 				AgentCommands: []AgentCommand{GetFilesystem},
@@ -418,16 +413,27 @@ func (p *AgentPoller) UpdateFromEvent(domainEvent *libvirt.DomainEventLifecycle,
 		if agentEvent.State == libvirt.CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_STATE_CONNECTED {
 			log.Log.Infof("Starting agent poller for %s due to agent connect", p.domainName)
 			p.agentStore.Store(AgentConnectedStatus, true)
-			// Determine whether the guest agent is supported
-			guestInfo := p.agentStore.GetGA()
-			supported := util.IsGuestAgentSupported(p.vmi, guestInfo.SupportedCommands)
-			p.agentStore.Store(AgentSupportedStatus, supported)
-			log.Log.Infof("Agent supports commands: %v", guestInfo.SupportedCommands)
-			log.Log.Infof("Agent is supported: %v, reason %s", supported.IsSupported, supported.UnsupportedReason)
+			p.getAgent()
 			p.Start()
 			return
 		}
 	}
+}
+
+func (p *AgentPoller) getAgent() {
+	cmdResult, err := p.Connection.QemuAgentCommand(`{"execute":"`+string(GetAgent)+`"}`, p.domainName)
+
+	agent, err := parseAgent(cmdResult)
+	if err != nil {
+		log.Log.Errorf("Cannot parse guest agent information %s", err.Error())
+		return
+	}
+	p.agentStore.Store(GetAgent, agent)
+
+	supported := util.IsGuestAgentSupported(p.vmi, agent.SupportedCommands)
+	p.agentStore.Store(AgentSupportedStatus, supported)
+	log.Log.Infof("Agent supports commands: %v", agent.SupportedCommands)
+	log.Log.Infof("Agent is supported: %v, reason %s", supported.IsSupported, supported.UnsupportedReason)
 }
 
 // TODO: Remove all commands with this function
@@ -465,13 +471,6 @@ func executeAgentCommands(commands []AgentCommand, agentPoller *AgentPoller) {
 				continue
 			}
 			agentPoller.agentStore.Store(GetFilesystem, filesystems)
-		case GetAgent:
-			agent, err := parseAgent(cmdResult)
-			if err != nil {
-				log.Log.Errorf("Cannot parse guest agent information %s", err.Error())
-				continue
-			}
-			agentPoller.agentStore.Store(GetAgent, agent)
 		}
 	}
 }
